@@ -241,7 +241,7 @@ func (c *Certificate) SetIssueDate(when time.Duration) error {
 }
 
 func (c *Certificate) CheckIssued(issuer *Certificate) bool {
-	if rc := C.X509_check_issued(c.x, issuer.x); rc == C.X509_V_OK {
+	if rc := C.X509_check_issued(issuer.x, c.x); rc == C.X509_V_OK {
 		return true
 	} else {
 		return false
