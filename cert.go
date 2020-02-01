@@ -240,6 +240,14 @@ func (c *Certificate) SetIssueDate(when time.Duration) error {
 	return nil
 }
 
+func (c *Certificate) CheckIssued(issuer *Certificate) bool {
+	if rc := C.X509_check_issued(c.x, issuer.x); rc == C.X509_V_OK {
+		return true
+	} else {
+		return false
+	}
+}
+
 // SetExpireDate sets the certificate issue date relative to the current time.
 func (c *Certificate) SetExpireDate(when time.Duration) error {
 	offset := C.long(when / time.Second)

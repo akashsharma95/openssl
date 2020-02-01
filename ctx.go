@@ -302,18 +302,46 @@ type CertificateStoreCtx struct {
 	ssl_ctx *Ctx
 }
 
-func (self *CertificateStoreCtx) VerifyResult() VerifyResult {
-	return VerifyResult(C.X509_STORE_CTX_get_error(self.ctx))
+func NewCertificateStoreCtx() (*CertificateStoreCtx, error) {
+	s := C.X509_STORE_CTX_new()
+	if s == nil {
+		return nil, errors.New("failed to allocate X509_STORE_CTX")
+	}
+
+	sctx := &CertificateStoreCtx{ctx: s}
+	runtime.SetFinalizer(sctx, func(s *CertificateStoreCtx) {
+		C.X509_STORE_CTX_free(s.ctx)
+	})
+
+	return sctx, nil
+}
+
+func (s *CertificateStoreCtx) InitStoreCtx(store *CertificateStore, uchain []*Certificate, cert *Certificate) error {
+	var uchainStack *C.struct_stack_st_X509 = C.sk_X509_new_null()
+	for _, ucert := range uchain {
+		C.sk_X509_push(uchainStack, ucert.x);
+	}
+
+	rc := C.X509_STORE_CTX_init(s.ctx, store.store, cert.x, uchainStack)
+	if rc != 1 {
+		return errors.New("failed to initialize certificate store")
+	}
+
+	return nil
+}
+
+func (s *CertificateStoreCtx) VerifyResult() VerifyResult {
+	return VerifyResult(C.X509_STORE_CTX_get_error(s.ctx))
 }
 
 // VerifyCert discover and verify X509 certificate chain
 // https://www.openssl.org/docs/manmaster/man3/X509_verify_cert.html
-func (self *CertificateStoreCtx) VerifyCert() int {
-	return int(C.X509_verify_cert(self.ctx))
+func (s *CertificateStoreCtx) VerifyCert() int {
+	return int(C.X509_verify_cert(s.ctx))
 }
 
-func (self *CertificateStoreCtx) Err() error {
-	code := C.X509_STORE_CTX_get_error(self.ctx)
+func (s *CertificateStoreCtx) Err() error {
+	code := C.X509_STORE_CTX_get_error(s.ctx)
 	if code == C.X509_V_OK {
 		return nil
 	}
@@ -321,14 +349,14 @@ func (self *CertificateStoreCtx) Err() error {
 		C.GoString(C.X509_verify_cert_error_string(C.long(code))))
 }
 
-func (self *CertificateStoreCtx) Depth() int {
-	return int(C.X509_STORE_CTX_get_error_depth(self.ctx))
+func (s *CertificateStoreCtx) Depth() int {
+	return int(C.X509_STORE_CTX_get_error_depth(s.ctx))
 }
 
 // the certicate returned is only valid for the lifetime of the underlying
 // X509_STORE_CTX
-func (self *CertificateStoreCtx) GetCurrentCert() *Certificate {
-	x509 := C.X509_STORE_CTX_get_current_cert(self.ctx)
+func (s *CertificateStoreCtx) GetCurrentCert() *Certificate {
+	x509 := C.X509_STORE_CTX_get_current_cert(s.ctx)
 	if x509 == nil {
 		return nil
 	}
