@@ -306,6 +306,12 @@ func (self *CertificateStoreCtx) VerifyResult() VerifyResult {
 	return VerifyResult(C.X509_STORE_CTX_get_error(self.ctx))
 }
 
+// VerifyCert discover and verify X509 certificate chain
+// https://www.openssl.org/docs/manmaster/man3/X509_verify_cert.html
+func (self *CertificateStoreCtx) VerifyCert() int {
+	return int(C.X509_verify_cert(self.ctx))
+}
+
 func (self *CertificateStoreCtx) Err() error {
 	code := C.X509_STORE_CTX_get_error(self.ctx)
 	if code == C.X509_V_OK {
